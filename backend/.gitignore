@@ -1,0 +1,17 @@
+# Binaries
+/bin/
+/cmd/server/server
+*.exe
+
+# Environment files (keep .env.example)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
