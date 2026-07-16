@@ -101,6 +101,11 @@ export function ItemForm() {
     }
   }, [item, isEdit]);
 
+  const STATUS_OPTIONS = [
+    { value: "0", label: "Inactive" },
+    { value: "1", label: "Active" },
+  ];
+
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   if (isEdit && isLoading) {
@@ -207,11 +212,16 @@ export function ItemForm() {
                     onValueChange={(v) => field.handleChange(Number(v))}
                   >
                     <SelectTrigger id="status" className="w-full">
-                      <SelectValue />
+                      <SelectValue>
+                        {STATUS_OPTIONS.find((o) => o.value === String(field.state.value))?.label ?? "Select status"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Inactive</SelectItem>
-                      <SelectItem value="1">Active</SelectItem>
+                      {STATUS_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   {field.state.meta.errors.length > 0 && (
