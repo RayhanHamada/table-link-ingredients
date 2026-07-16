@@ -1,122 +1,116 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Routes, Route, Navigate, NavLink } from "react-router-dom";
+import { Toaster } from "sonner";
+import { cn } from "@/lib/utils";
 
-function App() {
-  const [count, setCount] = useState(0)
+import { IngredientList } from "@/features/ingredients/ingredient-list";
+import { IngredientForm } from "@/features/ingredients/ingredient-form";
+import { ItemList } from "@/features/items/item-list";
+import { ItemForm } from "@/features/items/item-form";
+
+function Layout({ children }: { children: React.ReactNode }) {
+  const linkClasses = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+      isActive
+        ? "bg-muted text-foreground"
+        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+    );
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-40 border-b bg-background">
+        <div className="flex h-14 items-center gap-6 px-6">
+          <NavLink to="/ingredients" className="font-heading text-lg font-semibold tracking-tight">
+            TableLink
+          </NavLink>
+          <nav className="flex items-center gap-1">
+            <NavLink to="/ingredients" className={linkClasses}>
+              Ingredients
+            </NavLink>
+            <NavLink to="/items" className={linkClasses}>
+              Items
+            </NavLink>
+          </nav>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </header>
+      <main className="flex-1 px-6 py-8">
+        <div className="mx-auto max-w-5xl">{children}</div>
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default function App() {
+  return (
+    <>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Layout>
+              <Navigate to="/ingredients" replace />
+            </Layout>
+          }
+        />
+        <Route
+          path="/ingredients"
+          element={
+            <Layout>
+              <IngredientList />
+            </Layout>
+          }
+        />
+        <Route
+          path="/ingredients/new"
+          element={
+            <Layout>
+              <IngredientForm />
+            </Layout>
+          }
+        />
+        <Route
+          path="/ingredients/:uuid/edit"
+          element={
+            <Layout>
+              <IngredientForm />
+            </Layout>
+          }
+        />
+        <Route
+          path="/items"
+          element={
+            <Layout>
+              <ItemList />
+            </Layout>
+          }
+        />
+        <Route
+          path="/items/new"
+          element={
+            <Layout>
+              <ItemForm />
+            </Layout>
+          }
+        />
+        <Route
+          path="/items/:uuid/edit"
+          element={
+            <Layout>
+              <ItemForm />
+            </Layout>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <Layout>
+              <Navigate to="/ingredients" replace />
+            </Layout>
+          }
+        />
+      </Routes>
+      <Toaster />
+    </>
+  );
+}
+
