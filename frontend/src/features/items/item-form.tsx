@@ -95,7 +95,7 @@ export function ItemForm() {
       form.setFieldValue("name", item.name);
       form.setFieldValue("price", item.price);
       form.setFieldValue("status", item.status);
-      form.setFieldValue("ingredients", item.ingredients ?? []);
+      form.setFieldValue("ingredients", item.ingredients?.map((i) => i.value) ?? []);
     }
   }, [item, isEdit]);
 
@@ -118,7 +118,13 @@ export function ItemForm() {
     return <ErrorState message="Failed to load item" onRetry={() => refetch()} />;
   }
 
+  // Build label map from the item's own ingredient data (available immediately on edit).
+  const ingredientLabelMap = new Map(
+    item?.ingredients?.map((i) => [i.value, i.label]) ?? []
+  );
+
   const getIngredientName = (ingUuid: string) => {
+    if (ingredientLabelMap.has(ingUuid)) return ingredientLabelMap.get(ingUuid)!;
     const found = availableIngredients.find((ing) => ing.uuid === ingUuid);
     return found?.name ?? ingUuid;
   };

@@ -48,6 +48,11 @@ export interface Ingredient {
   deleted_at: string | null;
 }
 
+export interface ItemIngredientRef {
+  label: string;
+  value: string;
+}
+
 export interface Item {
   uuid: string;
   name: string;
@@ -56,7 +61,7 @@ export interface Item {
   created_at: string;
   updated_at: string | null;
   deleted_at: string | null;
-  ingredients: string[];
+  ingredients: ItemIngredientRef[];
 }
 
 export interface ItemIngredient {

@@ -17,6 +17,7 @@ import (
 // the join table tm_item_ingredient. Relationships use hard delete.
 type ItemIngredientRepository interface {
 	FindByItemUUID(ctx context.Context, itemUUID string) ([]domain.ItemIngredient, error)
+	FindRefsByItemUUID(ctx context.Context, itemUUID string) ([]domain.ItemIngredientRef, error)
 	CreateBulkTx(ctx context.Context, tx pgx.Tx, itemUUID string, ingredientUUIDs []string) error
 	DeleteByItemUUIDTx(ctx context.Context, tx pgx.Tx, itemUUID string) error
 }
@@ -74,6 +75,29 @@ func (r *itemIngredientRepo) FindByItemUUID(ctx context.Context, itemUUID string
 		rels = append(rels, rel)
 	}
 	return rels, rows.Err()
+}
+
+// FindRefsByItemUUID returns label/value refs by joining with tm_ingredient.
+func (r *itemIngredientRepo) FindRefsByItemUUID(ctx context.Context, itemUUID string) ([]domain.ItemIngredientRef, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT i.name, ii.uuid_ingredient
+		 FROM tm_item_ingredient ii
+		 JOIN tm_ingredient i ON i.uuid = ii.uuid_ingredient
+		 WHERE ii.uuid_item = $1 AND i.deleted_at IS NULL`, itemUUID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var refs []domain.ItemIngredientRef
+	for rows.Next() {
+		var ref domain.ItemIngredientRef
+		if err := rows.Scan(&ref.Label, &ref.Value); err != nil {
+			return nil, err
+		}
+		refs = append(refs, ref)
+	}
+	return refs, rows.Err()
 }
 
 // CreateBulkTx inserts all ingredient relationships for an item inside a

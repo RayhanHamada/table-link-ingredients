@@ -58,15 +58,11 @@ func (uc *itemUC) Get(ctx context.Context, uuid string) (*domain.Item, error) {
 	if item == nil {
 		return nil, nil
 	}
-	rels, err := uc.itemIngredientRepo.FindByItemUUID(ctx, uuid)
+	refs, err := uc.itemIngredientRepo.FindRefsByItemUUID(ctx, uuid)
 	if err != nil {
 		return nil, err
 	}
-	ingredients := make([]string, 0, len(rels))
-	for _, r := range rels {
-		ingredients = append(ingredients, r.UUIDIngredient)
-	}
-	item.Ingredients = ingredients
+	item.Ingredients = refs
 	return item, nil
 }
 
@@ -98,7 +94,11 @@ func (uc *itemUC) Create(ctx context.Context, input domain.ItemCreateInput) (*do
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
-	item.Ingredients = input.Ingredients
+	refs, err := uc.itemIngredientRepo.FindRefsByItemUUID(ctx, item.UUID)
+	if err != nil {
+		return nil, err
+	}
+	item.Ingredients = refs
 	return item, nil
 }
 
@@ -133,7 +133,11 @@ func (uc *itemUC) Update(ctx context.Context, input domain.ItemUpdateInput) (*do
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
-	item.Ingredients = input.Ingredients
+	refs, err := uc.itemIngredientRepo.FindRefsByItemUUID(ctx, item.UUID)
+	if err != nil {
+		return nil, err
+	}
+	item.Ingredients = refs
 	return item, nil
 }
 
