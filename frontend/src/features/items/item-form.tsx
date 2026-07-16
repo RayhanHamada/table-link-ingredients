@@ -29,9 +29,7 @@ import {
   ComboboxChip,
   ComboboxChipsInput,
   ComboboxContent,
-  ComboboxList,
   ComboboxItem,
-  ComboboxCollection,
   ComboboxEmpty,
 } from "@/components/ui/combobox";
 
@@ -260,18 +258,15 @@ export function ItemForm() {
                       <ComboboxChipsInput placeholder="Select ingredients..." />
                     </ComboboxChips>
                     <ComboboxContent>
-                      <ComboboxList>
-                        <ComboboxCollection>
-                          {availableIngredients.map((ing) => (
-                            <ComboboxItem key={ing.uuid} value={ing.uuid}>
-                              {ing.name}
-                            </ComboboxItem>
-                          ))}
-                        </ComboboxCollection>
-                        {availableIngredients.length === 0 && (
-                          <ComboboxEmpty>No ingredients found</ComboboxEmpty>
-                        )}
-                      </ComboboxList>
+                      {availableIngredients.length > 0 ? (
+                        availableIngredients.map((ing) => (
+                          <ComboboxItem key={ing.uuid} value={ing.uuid}>
+                            {ing.name}
+                          </ComboboxItem>
+                        ))
+                      ) : (
+                        <ComboboxEmpty>No ingredients found</ComboboxEmpty>
+                      )}
                     </ComboboxContent>
                   </Combobox>
                   {field.state.meta.errors.length > 0 && (
