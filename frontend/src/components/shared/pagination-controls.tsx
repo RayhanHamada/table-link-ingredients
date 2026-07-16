@@ -77,7 +77,7 @@ export function PaginationControls({
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm w-full text-muted-foreground">
           Page {page} of {totalPages} ({total} total)
         </span>
 
@@ -105,7 +105,7 @@ export function PaginationControls({
                     {p}
                   </PaginationLink>
                 </PaginationItem>
-              )
+              ),
             )}
 
             <PaginationItem>
