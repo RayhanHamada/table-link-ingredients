@@ -5,6 +5,7 @@ import (
 
 	"tablelink-backend/internal/domain"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -13,12 +14,11 @@ import (
 // ---------------------------------------------------------------------------
 
 // ItemIngredientRepository defines the data-access contract for
-// the join table tm_item_ingredient.
+// the join table tm_item_ingredient. Relationships use hard delete.
 type ItemIngredientRepository interface {
 	FindByItemUUID(ctx context.Context, itemUUID string) ([]domain.ItemIngredient, error)
-	FindByIngredientUUID(ctx context.Context, ingredientUUID string) ([]domain.ItemIngredient, error)
-	Create(ctx context.Context, rel *domain.ItemIngredient) error
-	Delete(ctx context.Context, itemUUID, ingredientUUID string) error
+	CreateBulkTx(ctx context.Context, tx pgx.Tx, itemUUID string, ingredientUUIDs []string) error
+	DeleteByItemUUIDTx(ctx context.Context, tx pgx.Tx, itemUUID string) error
 }
 
 // ---------------------------------------------------------------------------
@@ -45,18 +45,12 @@ const (
 		WHERE uuid_item = $1
 	`
 
-	itemIngredientFindByIngredientSQL = `
-		SELECT uuid_item, uuid_ingredient
-		FROM tm_item_ingredient
-		WHERE uuid_ingredient = $1
-	`
-
 	itemIngredientCreateSQL = `
 		INSERT INTO tm_item_ingredient (uuid_item, uuid_ingredient) VALUES ($1, $2)
 	`
 
-	itemIngredientDeleteSQL = `
-		DELETE FROM tm_item_ingredient WHERE uuid_item = $1 AND uuid_ingredient = $2
+	itemIngredientDeleteByItemSQL = `
+		DELETE FROM tm_item_ingredient WHERE uuid_item = $1
 	`
 )
 
@@ -82,30 +76,21 @@ func (r *itemIngredientRepo) FindByItemUUID(ctx context.Context, itemUUID string
 	return rels, rows.Err()
 }
 
-func (r *itemIngredientRepo) FindByIngredientUUID(ctx context.Context, ingredientUUID string) ([]domain.ItemIngredient, error) {
-	rows, err := r.pool.Query(ctx, itemIngredientFindByIngredientSQL, ingredientUUID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var rels []domain.ItemIngredient
-	for rows.Next() {
-		var rel domain.ItemIngredient
-		if err := rows.Scan(&rel.UUIDItem, &rel.UUIDIngredient); err != nil {
-			return nil, err
+// CreateBulkTx inserts all ingredient relationships for an item inside a
+// transaction. Uses hard insert.
+func (r *itemIngredientRepo) CreateBulkTx(ctx context.Context, tx pgx.Tx, itemUUID string, ingredientUUIDs []string) error {
+	for _, ingUUID := range ingredientUUIDs {
+		if _, err := tx.Exec(ctx, itemIngredientCreateSQL, itemUUID, ingUUID); err != nil {
+			return err
 		}
-		rels = append(rels, rel)
 	}
-	return rels, rows.Err()
+	return nil
 }
 
-func (r *itemIngredientRepo) Create(ctx context.Context, rel *domain.ItemIngredient) error {
-	_, err := r.pool.Exec(ctx, itemIngredientCreateSQL, rel.UUIDItem, rel.UUIDIngredient)
+// DeleteByItemUUIDTx performs a hard delete of all relationships for a given
+// item inside a transaction.
+func (r *itemIngredientRepo) DeleteByItemUUIDTx(ctx context.Context, tx pgx.Tx, itemUUID string) error {
+	_, err := tx.Exec(ctx, itemIngredientDeleteByItemSQL, itemUUID)
 	return err
 }
 
-func (r *itemIngredientRepo) Delete(ctx context.Context, itemUUID, ingredientUUID string) error {
-	_, err := r.pool.Exec(ctx, itemIngredientDeleteSQL, itemUUID, ingredientUUID)
-	return err
-}

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"tablelink-backend/internal/domain"
 
@@ -15,8 +16,10 @@ import (
 
 // IngredientRepository defines the data-access contract for tm_ingredient.
 type IngredientRepository interface {
-	FindAll(ctx context.Context) ([]domain.Ingredient, error)
+	FindAllPaginated(ctx context.Context, page, pageSize int) ([]domain.Ingredient, int, error)
 	FindByUUID(ctx context.Context, uuid string) (*domain.Ingredient, error)
+	FindByName(ctx context.Context, name string) (*domain.Ingredient, error)
+	BatchExist(ctx context.Context, uuids []string) (bool, error)
 	Create(ctx context.Context, ingredient *domain.Ingredient) error
 	Update(ctx context.Context, ingredient *domain.Ingredient) error
 	Delete(ctx context.Context, uuid string) error
@@ -40,17 +43,33 @@ func NewIngredientRepository(pool *pgxpool.Pool) IngredientRepository {
 // ---------------------------------------------------------------------------
 
 const (
-	ingredientFindAllSQL = `
+	ingredientCountSQL = `
+		SELECT COUNT(*) FROM tm_ingredient WHERE deleted_at IS NULL
+	`
+
+	ingredientFindAllPaginatedSQL = `
 		SELECT uuid, name, cause_alergy, type, status, created_at, updated_at, deleted_at
 		FROM tm_ingredient
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
 	`
 
 	ingredientFindByUUIDSQL = `
 		SELECT uuid, name, cause_alergy, type, status, created_at, updated_at, deleted_at
 		FROM tm_ingredient
 		WHERE uuid = $1 AND deleted_at IS NULL
+	`
+
+	ingredientFindByNameSQL = `
+		SELECT uuid, name, cause_alergy, type, status, created_at, updated_at, deleted_at
+		FROM tm_ingredient
+		WHERE name = $1 AND deleted_at IS NULL
+	`
+
+	ingredientBatchExistSQL = `
+		SELECT COUNT(*) FROM tm_ingredient
+		WHERE uuid = ANY($1) AND deleted_at IS NULL
 	`
 
 	ingredientCreateSQL = `
@@ -73,18 +92,11 @@ const (
 // pgx.Rows scanning helpers
 // ---------------------------------------------------------------------------
 
-// scanIngredient scans a single pgx.Row into a domain.Ingredient.
 func scanIngredient(row pgx.Row) (*domain.Ingredient, error) {
 	var i domain.Ingredient
 	err := row.Scan(
-		&i.UUID,
-		&i.Name,
-		&i.CauseAlergy,
-		&i.Type,
-		&i.Status,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
+		&i.UUID, &i.Name, &i.CauseAlergy, &i.Type, &i.Status,
+		&i.CreatedAt, &i.UpdatedAt, &i.DeletedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -92,22 +104,14 @@ func scanIngredient(row pgx.Row) (*domain.Ingredient, error) {
 	return &i, nil
 }
 
-// scanIngredients iterates pgx.Rows and collects all scanned ingredients.
 func scanIngredients(rows pgx.Rows) ([]domain.Ingredient, error) {
 	defer rows.Close()
-
 	var ingredients []domain.Ingredient
 	for rows.Next() {
 		var i domain.Ingredient
 		if err := rows.Scan(
-			&i.UUID,
-			&i.Name,
-			&i.CauseAlergy,
-			&i.Type,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
+			&i.UUID, &i.Name, &i.CauseAlergy, &i.Type, &i.Status,
+			&i.CreatedAt, &i.UpdatedAt, &i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -120,12 +124,22 @@ func scanIngredients(rows pgx.Rows) ([]domain.Ingredient, error) {
 // Method implementations
 // ---------------------------------------------------------------------------
 
-func (r *ingredientRepo) FindAll(ctx context.Context) ([]domain.Ingredient, error) {
-	rows, err := r.pool.Query(ctx, ingredientFindAllSQL)
-	if err != nil {
-		return nil, err
+func (r *ingredientRepo) FindAllPaginated(ctx context.Context, page, pageSize int) ([]domain.Ingredient, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, ingredientCountSQL).Scan(&total); err != nil {
+		return nil, 0, err
 	}
-	return scanIngredients(rows)
+
+	offset := (page - 1) * pageSize
+	rows, err := r.pool.Query(ctx, ingredientFindAllPaginatedSQL, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	data, err := scanIngredients(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data, total, nil
 }
 
 func (r *ingredientRepo) FindByUUID(ctx context.Context, uuid string) (*domain.Ingredient, error) {
@@ -133,24 +147,35 @@ func (r *ingredientRepo) FindByUUID(ctx context.Context, uuid string) (*domain.I
 	return scanIngredient(row)
 }
 
-func (r *ingredientRepo) Create(ctx context.Context, ingredient *domain.Ingredient) error {
+func (r *ingredientRepo) FindByName(ctx context.Context, name string) (*domain.Ingredient, error) {
+	row := r.pool.QueryRow(ctx, ingredientFindByNameSQL, name)
+	return scanIngredient(row)
+}
+
+func (r *ingredientRepo) BatchExist(ctx context.Context, uuids []string) (bool, error) {
+	if len(uuids) == 0 {
+		return true, nil
+	}
+	var count int
+	if err := r.pool.QueryRow(ctx, ingredientBatchExistSQL, uuids).Scan(&count); err != nil {
+		return false, err
+	}
+	if count != len(uuids) {
+		return false, fmt.Errorf("some ingredients do not exist: expected %d, found %d", len(uuids), count)
+	}
+	return true, nil
+}
+
+func (r *ingredientRepo) Create(ctx context.Context, i *domain.Ingredient) error {
 	_, err := r.pool.Exec(ctx, ingredientCreateSQL,
-		ingredient.UUID,
-		ingredient.Name,
-		ingredient.CauseAlergy,
-		ingredient.Type,
-		ingredient.Status,
+		i.UUID, i.Name, i.CauseAlergy, i.Type, i.Status,
 	)
 	return err
 }
 
-func (r *ingredientRepo) Update(ctx context.Context, ingredient *domain.Ingredient) error {
+func (r *ingredientRepo) Update(ctx context.Context, i *domain.Ingredient) error {
 	_, err := r.pool.Exec(ctx, ingredientUpdateSQL,
-		ingredient.Name,
-		ingredient.CauseAlergy,
-		ingredient.Type,
-		ingredient.Status,
-		ingredient.UUID,
+		i.Name, i.CauseAlergy, i.Type, i.Status, i.UUID,
 	)
 	return err
 }
@@ -159,3 +184,4 @@ func (r *ingredientRepo) Delete(ctx context.Context, uuid string) error {
 	_, err := r.pool.Exec(ctx, ingredientDeleteSQL, uuid)
 	return err
 }
+

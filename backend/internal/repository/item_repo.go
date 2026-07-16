@@ -15,10 +15,11 @@ import (
 
 // ItemRepository defines the data-access contract for tm_item.
 type ItemRepository interface {
-	FindAll(ctx context.Context) ([]domain.Item, error)
+	FindAllPaginated(ctx context.Context, page, pageSize int) ([]domain.Item, int, error)
 	FindByUUID(ctx context.Context, uuid string) (*domain.Item, error)
-	Create(ctx context.Context, item *domain.Item) error
-	Update(ctx context.Context, item *domain.Item) error
+	FindByName(ctx context.Context, name string) (*domain.Item, error)
+	CreateTx(ctx context.Context, tx pgx.Tx, item *domain.Item) error
+	UpdateTx(ctx context.Context, tx pgx.Tx, item *domain.Item) error
 	Delete(ctx context.Context, uuid string) error
 }
 
@@ -40,17 +41,26 @@ func NewItemRepository(pool *pgxpool.Pool) ItemRepository {
 // ---------------------------------------------------------------------------
 
 const (
-	itemFindAllSQL = `
+	itemCountSQL = `SELECT COUNT(*) FROM tm_item WHERE deleted_at IS NULL`
+
+	itemFindAllPaginatedSQL = `
 		SELECT uuid, name, price, status, created_at, updated_at, deleted_at
 		FROM tm_item
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
 	`
 
 	itemFindByUUIDSQL = `
 		SELECT uuid, name, price, status, created_at, updated_at, deleted_at
 		FROM tm_item
 		WHERE uuid = $1 AND deleted_at IS NULL
+	`
+
+	itemFindByNameSQL = `
+		SELECT uuid, name, price, status, created_at, updated_at, deleted_at
+		FROM tm_item
+		WHERE name = $1 AND deleted_at IS NULL
 	`
 
 	itemCreateSQL = `
@@ -64,9 +74,7 @@ const (
 		WHERE uuid = $4 AND deleted_at IS NULL
 	`
 
-	itemDeleteSQL = `
-		UPDATE tm_item SET deleted_at = NOW() WHERE uuid = $1
-	`
+	itemDeleteSQL = `UPDATE tm_item SET deleted_at = NOW() WHERE uuid = $1`
 )
 
 // ---------------------------------------------------------------------------
@@ -75,15 +83,7 @@ const (
 
 func scanItem(row pgx.Row) (*domain.Item, error) {
 	var i domain.Item
-	err := row.Scan(
-		&i.UUID,
-		&i.Name,
-		&i.Price,
-		&i.Status,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-	)
+	err := row.Scan(&i.UUID, &i.Name, &i.Price, &i.Status, &i.CreatedAt, &i.UpdatedAt, &i.DeletedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -92,19 +92,10 @@ func scanItem(row pgx.Row) (*domain.Item, error) {
 
 func scanItems(rows pgx.Rows) ([]domain.Item, error) {
 	defer rows.Close()
-
 	var items []domain.Item
 	for rows.Next() {
 		var i domain.Item
-		if err := rows.Scan(
-			&i.UUID,
-			&i.Name,
-			&i.Price,
-			&i.Status,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-		); err != nil {
+		if err := rows.Scan(&i.UUID, &i.Name, &i.Price, &i.Status, &i.CreatedAt, &i.UpdatedAt, &i.DeletedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -116,12 +107,21 @@ func scanItems(rows pgx.Rows) ([]domain.Item, error) {
 // Method implementations
 // ---------------------------------------------------------------------------
 
-func (r *itemRepo) FindAll(ctx context.Context) ([]domain.Item, error) {
-	rows, err := r.pool.Query(ctx, itemFindAllSQL)
-	if err != nil {
-		return nil, err
+func (r *itemRepo) FindAllPaginated(ctx context.Context, page, pageSize int) ([]domain.Item, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, itemCountSQL).Scan(&total); err != nil {
+		return nil, 0, err
 	}
-	return scanItems(rows)
+	offset := (page - 1) * pageSize
+	rows, err := r.pool.Query(ctx, itemFindAllPaginatedSQL, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	data, err := scanItems(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return data, total, nil
 }
 
 func (r *itemRepo) FindByUUID(ctx context.Context, uuid string) (*domain.Item, error) {
@@ -129,13 +129,18 @@ func (r *itemRepo) FindByUUID(ctx context.Context, uuid string) (*domain.Item, e
 	return scanItem(row)
 }
 
-func (r *itemRepo) Create(ctx context.Context, item *domain.Item) error {
-	_, err := r.pool.Exec(ctx, itemCreateSQL, item.UUID, item.Name, item.Price, item.Status)
+func (r *itemRepo) FindByName(ctx context.Context, name string) (*domain.Item, error) {
+	row := r.pool.QueryRow(ctx, itemFindByNameSQL, name)
+	return scanItem(row)
+}
+
+func (r *itemRepo) CreateTx(ctx context.Context, tx pgx.Tx, i *domain.Item) error {
+	_, err := tx.Exec(ctx, itemCreateSQL, i.UUID, i.Name, i.Price, i.Status)
 	return err
 }
 
-func (r *itemRepo) Update(ctx context.Context, item *domain.Item) error {
-	_, err := r.pool.Exec(ctx, itemUpdateSQL, item.Name, item.Price, item.Status, item.UUID)
+func (r *itemRepo) UpdateTx(ctx context.Context, tx pgx.Tx, i *domain.Item) error {
+	_, err := tx.Exec(ctx, itemUpdateSQL, i.Name, i.Price, i.Status, i.UUID)
 	return err
 }
 
@@ -143,3 +148,4 @@ func (r *itemRepo) Delete(ctx context.Context, uuid string) error {
 	_, err := r.pool.Exec(ctx, itemDeleteSQL, uuid)
 	return err
 }
+

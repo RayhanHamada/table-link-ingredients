@@ -58,7 +58,7 @@ func New(cfg *config.Config) (*Server, error) {
 
 	// Usecases
 	ingredientUC := usecase.NewIngredientUsecase(store.Ingredient)
-	itemUC := usecase.NewItemUsecase(store.Item)
+	itemUC := usecase.NewItemUsecase(store.Pool, store.Item, store.Ingredient, store.ItemIngredient)
 	itemIngredientUC := usecase.NewItemIngredientUsecase(store.ItemIngredient)
 
 	// Handlers

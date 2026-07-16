@@ -1,5 +1,5 @@
 build:
 	go build -o bin/app ./cmd/server
 
-run: build
-	./app
+run:
+	go run ./cmd/server

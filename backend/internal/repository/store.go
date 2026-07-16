@@ -7,6 +7,7 @@ import (
 // Store holds the database connection pool and all repository implementations.
 // It is the single point of access to all data layers.
 type Store struct {
+	Pool            *pgxpool.Pool
 	Ingredient      IngredientRepository
 	Item            ItemRepository
 	ItemIngredient  ItemIngredientRepository
@@ -15,8 +16,10 @@ type Store struct {
 // NewStore wires all repositories together with the provided pgxpool.
 func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{
-		Ingredient:      NewIngredientRepository(pool),
-		Item:            NewItemRepository(pool),
-		ItemIngredient:  NewItemIngredientRepository(pool),
+		Pool:           pool,
+		Ingredient:     NewIngredientRepository(pool),
+		Item:           NewItemRepository(pool),
+		ItemIngredient: NewItemIngredientRepository(pool),
 	}
 }
+
