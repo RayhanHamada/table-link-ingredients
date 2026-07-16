@@ -23,6 +23,16 @@ func (h *ItemIngredientHandler) Register(r fiber.Router) {
 	r.Get("/:uuid/ingredients", h.ListByItem)
 }
 
+// ListByItem returns all ingredient UUIDs linked to an item.
+//
+//	@Summary		List item ingredients
+//	@Description	Returns all ingredient UUIDs associated with a given item.
+//	@Tags			items
+//	@Produce		json
+//	@Param			uuid	path		string	true	"Item UUID"
+//	@Success		200		{array}		domain.ItemIngredient
+//	@Failure		500		{object}	map[string]string
+//	@Router			/items/{uuid}/ingredients [get]
 func (h *ItemIngredientHandler) ListByItem(c fiber.Ctx) error {
 	rels, err := h.uc.ListByItem(c.Context(), c.Params("uuid"))
 	if err != nil {

@@ -1,0 +1,477 @@
+basePath: /api/v1
+definitions:
+  domain.Ingredient:
+    properties:
+      cause_alergy:
+        type: boolean
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      name:
+        type: string
+      status:
+        $ref: '#/definitions/domain.RecordStatus'
+      type:
+        $ref: '#/definitions/domain.IngredientType'
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  domain.IngredientType:
+    enum:
+    - 0
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - IngredientTypeNone
+    - IngredientTypeVeggie
+    - IngredientTypeVegan
+  domain.Item:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      ingredients:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      price:
+        type: number
+      status:
+        $ref: '#/definitions/domain.RecordStatus'
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  domain.ItemIngredient:
+    properties:
+      uuid_ingredient:
+        type: string
+      uuid_item:
+        type: string
+    type: object
+  domain.PaginatedIngredients:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/domain.Ingredient'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  domain.PaginatedItems:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/domain.Item'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  domain.RecordStatus:
+    enum:
+    - 0
+    - 1
+    type: integer
+    x-enum-varnames:
+    - StatusInactive
+    - StatusActive
+host: localhost:3000
+info:
+  contact: {}
+  description: REST API for managing items and ingredients.
+  title: TableLink API
+  version: "1.0"
+paths:
+  /ingredients:
+    get:
+      description: Returns a paginated list of active ingredients (soft-deleted excluded).
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size (10, 20, 50)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.PaginatedIngredients'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List ingredients
+      tags:
+      - ingredients
+    post:
+      consumes:
+      - application/json
+      description: Creates a new ingredient. Name must be unique (excluding soft-deleted
+        records).
+      parameters:
+      - description: Ingredient payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            cause_alergy:
+              type: boolean
+            name:
+              type: string
+            status:
+              type: integer
+            type:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Ingredient'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create ingredient
+      tags:
+      - ingredients
+  /ingredients/{uuid}:
+    delete:
+      description: Soft-deletes an ingredient (sets deleted_at).
+      parameters:
+      - description: Ingredient UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete ingredient
+      tags:
+      - ingredients
+    get:
+      description: Returns a single ingredient by UUID.
+      parameters:
+      - description: Ingredient UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Ingredient'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get ingredient
+      tags:
+      - ingredients
+    put:
+      consumes:
+      - application/json
+      description: Updates an ingredient. Name must be unique excluding current record
+        and soft-deleted.
+      parameters:
+      - description: Ingredient UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Ingredient payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            cause_alergy:
+              type: boolean
+            name:
+              type: string
+            status:
+              type: integer
+            type:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Ingredient'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update ingredient
+      tags:
+      - ingredients
+  /items:
+    get:
+      description: Returns a paginated list of active items (soft-deleted excluded).
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size (10, 20, 50)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.PaginatedItems'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List items
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      description: Creates a new item. Name must be unique. At least one ingredient
+        is required. Ingredient UUIDs must exist.
+      parameters:
+      - description: Item payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            ingredients:
+              items:
+                type: string
+              type: array
+            name:
+              type: string
+            price:
+              type: number
+            status:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.Item'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create item
+      tags:
+      - items
+  /items/{uuid}:
+    delete:
+      description: 'Soft-deletes an item (sets deleted_at). Note: tm_item_ingredient
+        relationships are NOT deleted.'
+      parameters:
+      - description: Item UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete item
+      tags:
+      - items
+    get:
+      description: Returns a single item by UUID with its associated ingredient UUIDs.
+      parameters:
+      - description: Item UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Item'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get item
+      tags:
+      - items
+    put:
+      consumes:
+      - application/json
+      description: Updates an item. Name must be unique excluding current record.
+        Replaces all ingredient relationships.
+      parameters:
+      - description: Item UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Item payload
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            ingredients:
+              items:
+                type: string
+              type: array
+            name:
+              type: string
+            price:
+              type: number
+            status:
+              type: integer
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Item'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update item
+      tags:
+      - items
+  /items/{uuid}/ingredients:
+    get:
+      description: Returns all ingredient UUIDs associated with a given item.
+      parameters:
+      - description: Item UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/domain.ItemIngredient'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List item ingredients
+      tags:
+      - items
+swagger: "2.0"

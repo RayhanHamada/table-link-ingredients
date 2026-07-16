@@ -29,7 +29,16 @@ func (h *ItemHandler) RegisterGroup(r fiber.Router) fiber.Router {
 }
 
 // List returns a paginated list of active items.
-// Query params: page (default 1), page_size (10, 20, or 50; default 10).
+//
+//	@Summary		List items
+//	@Description	Returns a paginated list of active items (soft-deleted excluded).
+//	@Tags			items
+//	@Produce		json
+//	@Param			page		query		int	false	"Page number"	default(1)
+//	@Param			page_size	query		int	false	"Page size (10, 20, 50)"	default(10)
+//	@Success		200			{object}	domain.PaginatedItems
+//	@Failure		500			{object}	map[string]string
+//	@Router			/items [get]
 func (h *ItemHandler) List(c fiber.Ctx) error {
 	page, pageSize := parsePagination(c)
 	result, err := h.uc.List(c.Context(), page, pageSize)
@@ -39,6 +48,17 @@ func (h *ItemHandler) List(c fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// Get returns a single item by UUID including its ingredient UUIDs.
+//
+//	@Summary		Get item
+//	@Description	Returns a single item by UUID with its associated ingredient UUIDs.
+//	@Tags			items
+//	@Produce		json
+//	@Param			uuid	path		string	true	"Item UUID"
+//	@Success		200		{object}	domain.Item
+//	@Failure		404		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/items/{uuid} [get]
 func (h *ItemHandler) Get(c fiber.Ctx) error {
 	item, err := h.uc.Get(c.Context(), c.Params("uuid"))
 	if err != nil {
@@ -50,6 +70,18 @@ func (h *ItemHandler) Get(c fiber.Ctx) error {
 	return c.JSON(item)
 }
 
+// Create inserts a new item with ingredient relationships inside a transaction.
+//
+//	@Summary		Create item
+//	@Description	Creates a new item. Name must be unique. At least one ingredient is required. Ingredient UUIDs must exist.
+//	@Tags			items
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		object{name=string,price=number,status=int,ingredients=[]string}	true	"Item payload"
+//	@Success		201		{object}	domain.Item
+//	@Failure		400		{object}	map[string]string
+//	@Failure		409		{object}	map[string]string
+//	@Router			/items [post]
 func (h *ItemHandler) Create(c fiber.Ctx) error {
 	var input struct {
 		Name        string             `json:"name"`
@@ -79,6 +111,19 @@ func (h *ItemHandler) Create(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(item)
 }
 
+// Update modifies an item and its ingredient relationships inside a transaction.
+//
+//	@Summary		Update item
+//	@Description	Updates an item. Name must be unique excluding current record. Replaces all ingredient relationships.
+//	@Tags			items
+//	@Accept			json
+//	@Produce		json
+//	@Param			uuid	path		string																true	"Item UUID"
+//	@Param			body	body		object{name=string,price=number,status=int,ingredients=[]string}	true	"Item payload"
+//	@Success		200		{object}	domain.Item
+//	@Failure		400		{object}	map[string]string
+//	@Failure		409		{object}	map[string]string
+//	@Router			/items/{uuid} [put]
 func (h *ItemHandler) Update(c fiber.Ctx) error {
 	var input struct {
 		Name        string              `json:"name"`
@@ -109,6 +154,15 @@ func (h *ItemHandler) Update(c fiber.Ctx) error {
 	return c.JSON(item)
 }
 
+// Delete soft-deletes an item.
+//
+//	@Summary		Delete item
+//	@Description	Soft-deletes an item (sets deleted_at). Note: tm_item_ingredient relationships are NOT deleted.
+//	@Tags			items
+//	@Param			uuid	path	string	true	"Item UUID"
+//	@Success		204
+//	@Failure		500	{object}	map[string]string
+//	@Router			/items/{uuid} [delete]
 func (h *ItemHandler) Delete(c fiber.Ctx) error {
 	if err := h.uc.Delete(c.Context(), c.Params("uuid")); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})

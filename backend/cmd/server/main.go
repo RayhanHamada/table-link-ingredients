@@ -8,7 +8,15 @@ import (
 
 	"tablelink-backend/internal/config"
 	"tablelink-backend/internal/server"
+
+	_ "tablelink-backend/docs"
 )
+
+// @title           TableLink API
+// @version         1.0
+// @description     REST API for managing items and ingredients.
+// @host            localhost:3000
+// @BasePath        /api/v1
 
 func main() {
 	// ---------------------------------------------------------------

@@ -11,18 +11,21 @@ import (
 	"tablelink-backend/internal/usecase"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/jackc/pgx/v5/pgxpool"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // Server is the application runtime. It owns the configuration, dependencies,
 // and the Fiber app instance.
 type Server struct {
-	cfg    *config.Config
-	app    *fiber.App
-	pool   *pgxpool.Pool
-	store  *repository.Store
+	cfg   *config.Config
+	app   *fiber.App
+	pool  *pgxpool.Pool
+	store *repository.Store
 }
 
 // New creates and wires every layer: config → db pool → repos → usecases → handlers → routes.
@@ -82,6 +85,13 @@ func New(cfg *config.Config) (*Server, error) {
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
+
+	// Swagger
+	app.Use("/docs", static.New("./docs"))
+	app.Get("/swagger/*", adaptor.HTTPHandler(httpSwagger.Handler(
+		httpSwagger.URL("/docs/swagger.json"),
+		httpSwagger.DeepLinking(true),
+	)))
 
 	// API v1 group
 	v1 := app.Group("/api/v1")
